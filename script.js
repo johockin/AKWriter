@@ -176,6 +176,13 @@ class AKWriter {
     }
 
     applyHeaderStyling() {
+        // Don't process if editor is empty or only has empty paragraphs
+        const textContent = this.editor.textContent.trim();
+        if (!textContent || textContent === '') {
+            console.log('🔍 Skipping header styling - editor is empty');
+            return;
+        }
+        
         console.log('🔍 === SEMANTIC HEADER STYLING ===');
         
         // Save current cursor position
@@ -249,6 +256,38 @@ class AKWriter {
             false
         );
         return walker.nextNode();
+    }
+    
+    autoAddSpaceAfterHash() {
+        const selection = window.getSelection();
+        if (selection.rangeCount === 0) return;
+        
+        const range = selection.getRangeAt(0);
+        const node = range.startContainer;
+        
+        if (node.nodeType === Node.TEXT_NODE) {
+            const text = node.textContent;
+            const pos = range.startOffset;
+            
+            // Look for #letter pattern (hash followed immediately by letter)
+            if (pos > 0 && text[pos - 1].match(/[a-zA-Z]/) && 
+                text.substring(0, pos).match(/#[a-zA-Z]$/)) {
+                console.log('🔧 Auto-adding space after #');
+                
+                // Insert space before the letter
+                const newText = text.substring(0, pos - 1) + ' ' + text.substring(pos - 1);
+                node.textContent = newText;
+                
+                // Move cursor to after the space
+                range.setStart(node, pos + 1);
+                range.collapse(true);
+                selection.removeAllRanges();
+                selection.addRange(range);
+                
+                // Trigger header processing after space is added
+                setTimeout(() => this.applyHeaderStyling(), 50);
+            }
+        }
     }
     
     getAbsoluteOffset(node, offset) {

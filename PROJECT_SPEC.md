@@ -225,29 +225,46 @@ class AKWriter {
 - **Timing**: 300ms debounce to prevent typing interference
 - **Isolation**: Headers are strictly line-isolated and cannot bleed to other lines
 
-### Technical Architecture Updates (CURRENT)
-- **script.js:16-54**: Robust enter key handling with proper line/paragraph breaks
-- **script.js:62**: Debounced markdown processing (300ms delay)
-- **script.js:112-126**: Simplified `applyHeaderStyling()` function using div-based approach
-- **script.js:296-352**: New `scanAndProcessAllContent()` function with proper HTML structure creation
-- **script.js:325-338**: Content rebuilt with div elements for proper CSS targeting
-- **Cursor Preservation**: Fixed caret positioning with fallback methods for invalid rects
+## MAJOR ARCHITECTURAL SHIFT: Semantic Structure (v2.0)
 
-### Header Implementation (ENHANCED)
-- **Approach**: Structured span elements with separate hash mark and content
-- **CSS Target**: `.header-1` class with `.hash-mark` and `.header-content` children
-- **Hash Mark**: Positioned in left margin (-30px), nearly invisible (#f5f5f5)
-- **Text Alignment**: Header content properly left-aligned without hash mark
-- **Original Case Storage**: Map stores original text case for reversion
-- **Smart Reversion**: Deleting space after # automatically reverts to original case
-- **Scan-on-Reload**: All existing content processed when app loads
-- **Real-time**: Headers styled as user types with debounced processing
+### Core Philosophy Change
+**From**: Line break counting (`<br>` tags) → **To**: Semantic elements with identity
+- **Paragraphs are entities**: Each `<p>` has semantic meaning and proper spacing
+- **Headers are proper headings**: `<h1>` elements instead of styled spans
+- **Professional behavior**: Matches Word, Google Docs, etc. in paragraph handling
 
-### Performance Improvements
-- **Eliminated DOM Walking**: Simple div.querySelectorAll() approach
-- **Proper HTML Structure**: Content stored as structured divs, not plain text
-- **Better Debouncing**: 300ms delay prevents typing interference
-- **Reliable Caret**: Fixed cursor jumping with robust positioning fallbacks
+### New Semantic Structure
+```html
+<!-- OLD (BR-based) -->
+<div contenteditable>Text<br><br>More text<br><br>Header</div>
+
+<!-- NEW (Semantic) -->
+<div contenteditable>
+  <p>Text</p>
+  <p>More text</p>
+  <h1># Header</h1>
+</div>
+```
+
+### Technical Implementation (Current)
+- **script.js:17-46**: Semantic enter key handling (Enter = new `<p>`, Shift+Enter = `<br>`)
+- **script.js:103-176**: `createNewParagraph()` function with smart paragraph splitting
+- **script.js:178-242**: Semantic header conversion (`<p>` ↔ `<h1>`)
+- **script.js:254-284**: Auto-space insertion after `#` (detects `#header` → `# header`)
+- **styles.css:85-111**: Semantic CSS (`.editor p`, `.editor h1`)
+
+### Breakthrough Features
+- **✅ Original Case Preservation**: CSS `text-transform: uppercase` preserves underlying text
+- **✅ Cursor Position Stability**: No jumping when elements convert between p/h1
+- **✅ Smart Auto-Formatting**: `#header` automatically becomes `# header`
+- **✅ Clean Reversion**: Delete `#` and text reverts to original case automatically
+- **✅ Migration Support**: Converts old BR-based content to semantic structure
+
+### Typography Refinements
+- **Letter Spacing**: 0.0375em (optimized for readability)
+- **Semantic Margins**: `p { margin-bottom: 1.5em }`, `h1 { margin: 4em 0 1em 0 }`
+- **Consistent Colors**: Headers match body text (#333333)
+- **Professional Spacing**: Each element has proper identity-based spacing
 
 ## Handoff Notes
 - This is a web-based application designed for macOS users
