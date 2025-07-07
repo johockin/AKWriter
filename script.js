@@ -25,13 +25,24 @@ class AKWriter {
                 
                 if (e.shiftKey) {
                     // Shift+Enter: insert line break within current paragraph
+                    console.log('📄 Shift+Enter: Adding line break');
+                    
+                    // Cancel any pending header styling
+                    clearTimeout(this.markdownTimeout);
+                    
                     const br = document.createElement('br');
                     range.deleteContents();
                     range.insertNode(br);
+                    
+                    // Position cursor after the br
                     range.setStartAfter(br);
                     range.collapse(true);
                     selection.removeAllRanges();
                     selection.addRange(range);
+                    
+                    // Update caret immediately, don't trigger header styling
+                    setTimeout(() => this.updateCaretPosition(), 1);
+                    return; // Don't continue to header processing
                 } else {
                     // Enter: create new paragraph
                     this.createNewParagraph(range);
@@ -40,7 +51,10 @@ class AKWriter {
                 // Update caret position and process markdown
                 setTimeout(() => {
                     this.updateCaretPosition();
-                    this.applyHeaderStyling();
+                    // Only apply header styling for Enter, not Shift+Enter
+                    if (!e.shiftKey) {
+                        this.applyHeaderStyling();
+                    }
                 }, 1);
             }
         });
@@ -48,15 +62,42 @@ class AKWriter {
         // Track cursor and process markdown
         this.editor.addEventListener('keyup', (e) => {
             this.updateCaretPosition();
-            this.autoAddSpaceAfterHash();
-            // Process markdown only when user stops typing
-            clearTimeout(this.markdownTimeout);
-            this.markdownTimeout = setTimeout(() => this.applyHeaderStyling(), 500);
+            
+            // Skip ALL processing for Shift+Enter - it's just a line break
+            if (e.shiftKey && e.key === 'Enter') {
+                return;
+            }
+            
+            // Auto-add space after # when user types a letter
+            if (e.key.match(/[a-zA-Z]/)) {
+                this.autoAddSpaceAfterHash();
+            }
+            
+            // Only process headers for specific keys that could affect header status
+            if (e.key === '#' || e.key === ' ' || e.key === 'Backspace' || e.key === 'Delete') {
+                clearTimeout(this.markdownTimeout);
+                this.markdownTimeout = setTimeout(() => this.applyHeaderStyling(), 300);
+            }
         });
         
         this.editor.addEventListener('click', () => this.updateCaretPosition());
         this.editor.addEventListener('focus', () => this.showCaret());
         this.editor.addEventListener('blur', () => this.hideCaret());
+        
+        // Focus editor when clicking anywhere in the container
+        document.querySelector('.editor-container').addEventListener('click', (e) => {
+            if (e.target === e.currentTarget || e.target.classList.contains('editor-wrapper')) {
+                this.editor.focus();
+                // Position cursor at end of content
+                const selection = window.getSelection();
+                const range = document.createRange();
+                range.selectNodeContents(this.editor);
+                range.collapse(false);
+                selection.removeAllRanges();
+                selection.addRange(range);
+                this.updateCaretPosition();
+            }
+        });
         
         // File operations
         document.addEventListener('keydown', (e) => {
@@ -74,31 +115,6 @@ class AKWriter {
         window.addEventListener('beforeunload', () => this.saveContent());
     }
     
-    autoAddSpaceAfterHash() {
-        const selection = window.getSelection();
-        if (selection.rangeCount === 0) return;
-        
-        const range = selection.getRangeAt(0);
-        const node = range.startContainer;
-        
-        if (node.nodeType === Node.TEXT_NODE) {
-            const text = node.textContent;
-            const pos = range.startOffset;
-            
-            // Look for #letter pattern
-            if (pos > 0 && text[pos - 1].match(/[a-zA-Z]/) && text.substring(0, pos).match(/#[a-zA-Z]$/)) {
-                // Insert space before the letter
-                const newText = text.substring(0, pos - 1) + ' ' + text.substring(pos - 1);
-                node.textContent = newText;
-                
-                // Move cursor
-                range.setStart(node, pos + 1);
-                range.collapse(true);
-                selection.removeAllRanges();
-                selection.addRange(range);
-            }
-        }
-    }
     
     createNewParagraph(range) {
         console.log('📄 Creating new paragraph');
@@ -183,24 +199,35 @@ class AKWriter {
             return;
         }
         
-        console.log('🔍 === SEMANTIC HEADER STYLING ===');
         
-        // Save current cursor position
+        // Save cursor position only if we're about to modify elements
         const selection = window.getSelection();
-        let cursorElement = null;
+        let needsRestore = false;
         let cursorOffset = 0;
+        let targetElement = null;
         
         if (selection.rangeCount > 0) {
             const range = selection.getRangeAt(0);
-            cursorElement = range.startContainer;
             cursorOffset = range.startOffset;
             
-            // Find the containing paragraph or header
-            let container = cursorElement;
+            // Check if cursor is in an element that will be converted
+            let container = range.startContainer;
             while (container && !['P', 'H1'].includes(container.tagName)) {
                 container = container.parentElement;
             }
-            cursorElement = container;
+            
+            if (container) {
+                const text = container.textContent.trim();
+                const isP = container.tagName === 'P';
+                const isH1 = container.tagName === 'H1';
+                
+                // Will this element be converted?
+                if ((isP && text.startsWith('# ') && !text.startsWith('## ')) ||
+                    (isH1 && !text.startsWith('# '))) {
+                    needsRestore = true;
+                    targetElement = container;
+                }
+            }
         }
         
         // Convert h1 elements back to p if they no longer start with #
@@ -209,9 +236,8 @@ class AKWriter {
                 console.log('🔄 Converting h1 back to p:', h1.textContent.substring(0, 30));
                 const p = document.createElement('p');
                 p.innerHTML = h1.innerHTML;
-                const wasCurrentElement = (h1 === cursorElement);
                 h1.parentElement.replaceChild(p, h1);
-                if (wasCurrentElement) cursorElement = p;
+                if (h1 === targetElement) targetElement = p;
             }
         });
         
@@ -222,30 +248,29 @@ class AKWriter {
                 console.log('✨ Converting p to h1:', text);
                 const h1 = document.createElement('h1');
                 h1.innerHTML = p.innerHTML;
-                const wasCurrentElement = (p === cursorElement);
                 p.parentElement.replaceChild(h1, p);
-                if (wasCurrentElement) cursorElement = h1;
+                if (p === targetElement) targetElement = h1;
             }
         });
         
-        // Restore cursor position
-        if (cursorElement && selection.rangeCount > 0) {
+        // Restore cursor only if an element was actually converted
+        if (needsRestore && targetElement) {
             try {
                 const range = document.createRange();
-                const firstTextNode = this.getFirstTextNode(cursorElement);
-                if (firstTextNode) {
-                    range.setStart(firstTextNode, Math.min(cursorOffset, firstTextNode.textContent.length));
+                const textNode = this.getFirstTextNode(targetElement);
+                if (textNode) {
+                    const safeOffset = Math.min(cursorOffset, textNode.textContent.length);
+                    range.setStart(textNode, safeOffset);
                     range.collapse(true);
                     selection.removeAllRanges();
                     selection.addRange(range);
-                    console.log('✅ Restored cursor position');
+                    console.log('🔧 Restored cursor after element conversion');
                 }
             } catch (e) {
-                console.log('⚠️ Could not restore cursor position');
+                console.log('⚠️ Could not restore cursor');
             }
         }
         
-        console.log('🔍 === END SEMANTIC HEADER STYLING ===');
     }
     
     getFirstTextNode(element) {
@@ -270,22 +295,26 @@ class AKWriter {
             const pos = range.startOffset;
             
             // Look for #letter pattern (hash followed immediately by letter)
-            if (pos > 0 && text[pos - 1].match(/[a-zA-Z]/) && 
-                text.substring(0, pos).match(/#[a-zA-Z]$/)) {
-                console.log('🔧 Auto-adding space after #');
+            if (pos > 0 && text[pos - 1].match(/[a-zA-Z]/)) {
+                const beforeLetter = text.substring(0, pos - 1);
+                // Check if the character before the letter is # and before that is start or whitespace
+                if (beforeLetter.endsWith('#') && (beforeLetter.length === 1 || beforeLetter[beforeLetter.length - 2].match(/\s/))) {
+                    console.log('🔧 Auto-adding space after #');
                 
-                // Insert space before the letter
-                const newText = text.substring(0, pos - 1) + ' ' + text.substring(pos - 1);
-                node.textContent = newText;
-                
-                // Move cursor to after the space
-                range.setStart(node, pos + 1);
-                range.collapse(true);
-                selection.removeAllRanges();
-                selection.addRange(range);
-                
-                // Trigger header processing after space is added
-                setTimeout(() => this.applyHeaderStyling(), 50);
+                    // Insert space before the letter
+                    const newText = text.substring(0, pos - 1) + ' ' + text.substring(pos - 1);
+                    node.textContent = newText;
+                    
+                    // Move cursor to after the space
+                    range.setStart(node, pos + 1);
+                    range.collapse(true);
+                    selection.removeAllRanges();
+                    selection.addRange(range);
+                    
+                    // Trigger header processing after space is added
+                    clearTimeout(this.markdownTimeout);
+                    this.markdownTimeout = setTimeout(() => this.applyHeaderStyling(), 100);
+                }
             }
         }
     }
@@ -457,8 +486,13 @@ class AKWriter {
     }
     
     saveContent() {
-        if (this.editor.textContent.trim()) {
+        const textContent = this.editor.textContent.trim();
+        if (textContent) {
             localStorage.setItem('akwriter-content', this.editor.innerHTML);
+        } else {
+            // If content is empty, clear localStorage
+            localStorage.removeItem('akwriter-content');
+            console.log('🗑️ Cleared empty content from localStorage');
         }
     }
     

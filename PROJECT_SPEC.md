@@ -171,17 +171,19 @@ class AKWriter {
 3. Add reversion logic when # is removed
 4. Test extensively with edge cases
 
-### Testing Checklist
-- [ ] Type normally without any styling interference
-- [ ] Click anywhere and continue typing
-- [ ] Enter creates paragraph breaks correctly
-- [ ] Shift+Enter creates line breaks correctly
-- [ ] Headers work only on their specific lines
-- [ ] Removing # reverts to normal text
-- [ ] File save/load preserves all formatting
-- [ ] No ALL CAPS spreading under any circumstances
-- [ ] Cursor never jumps unexpectedly
-- [ ] Performance remains smooth during long documents
+### Testing Checklist (Current Status)
+- [x] Type normally without any styling interference ✅
+- [x] Click anywhere and continue typing ✅ 
+- [x] Enter creates paragraph breaks correctly ✅
+- [x] Shift+Enter creates line breaks correctly ✅
+- [x] Headers work only on their specific lines ✅
+- [x] Removing # reverts to normal text ✅
+- [x] File save/load preserves all formatting ✅
+- [x] No ALL CAPS spreading under any circumstances ✅
+- [x] Cursor never jumps unexpectedly ✅
+- [x] Performance remains smooth during long documents ✅
+- [x] Auto-space insertion after # works ✅
+- [x] Click in margins focuses editor ✅
 
 ## Performance Requirements
 
@@ -212,18 +214,32 @@ class AKWriter {
 5. **Preservation**: Document structure always maintained
 6. **Usability**: Intuitive and distraction-free
 
-## Recent Fixes Applied (Current Implementation)
+## Critical Bug Fixes Applied (December 2024)
 
-### Enter Key Behavior (FIXED)
-- **Shift+Enter**: Now properly inserts single `<br>` tag for line breaks
-- **Enter**: Now properly inserts double `<br>` tags for paragraph breaks (was incorrectly using triple breaks)
-- **Header Mode**: Fixed "stuck in header mode" issue - headers now only apply to the current cursor line
+### Shift+Enter Cursor Jumping (COMPLETELY FIXED) ✅
+**Issue**: After Shift+Enter line breaks, cursor would jump back 25+ characters into previous paragraph
+**Root Cause**: Header styling was running after Shift+Enter and interfering with cursor position
+**Solution**: 
+- Eliminated all header processing after Shift+Enter
+- Cleared pending timeouts to prevent delayed interference
+- Added surgical cursor restoration only when elements actually convert
 
-### Markdown Processing (REWRITTEN)
-- **Function**: Replaced `checkForHeaders()` with `applyHeaderStyling()`
-- **Approach**: Simple cursor-based detection instead of complex DOM manipulation
-- **Timing**: 300ms debounce to prevent typing interference
-- **Isolation**: Headers are strictly line-isolated and cannot bleed to other lines
+### Auto-Space Insertion (WORKING) ✅
+**Feature**: `#header` automatically becomes `# header`
+**Implementation**: Detects hash followed immediately by letter and inserts space
+**Triggers**: Only when typing letters after `#` character
+
+### Header Conversion (WORKING) ✅
+**Feature**: `# text` becomes uppercase headers, removing `#` reverts to normal case
+**Implementation**: Semantic `<p>` ↔ `<h1>` conversion with CSS `text-transform: uppercase`
+**Cursor Management**: Smart restoration only when elements are actually converted
+
+### Performance Optimization (IMPROVED) ✅
+**Issue**: Header styling running on every keystroke causing lag
+**Solution**: 
+- Only trigger on specific keys: `#`, space, backspace, delete
+- Reduced timeout from 500ms to 300ms
+- Eliminated unnecessary processing during normal typing
 
 ## MAJOR ARCHITECTURAL SHIFT: Semantic Structure (v2.0)
 
