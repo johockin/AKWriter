@@ -16,6 +16,7 @@ Create a clean, distraction-free writing application inspired by iA Writer, opti
 - **Focus Mode**: Writing should feel immersive and distraction-free
 - **Subtle Enhancement**: Markdown styling should enhance readability without being intrusive. In fact, where possible, hide of de-emphasize markdown elements that wouldnt appear in a regular document
 - **Performance First**: App must load instantly and respond immediately to every keystroke
+- **Debug Console Philosophy**: CRITICAL - Console logging is the ONLY acceptable "messy" element of the app. Verbose debugging should be preserved indefinitely to aid development and troubleshooting. Never remove debug logging without explicit user permission. The console is our diagnostic tool and should remain comprehensive.
 
 ## Visual Design Specifications
 
@@ -240,6 +241,184 @@ class AKWriter {
 - Only trigger on specific keys: `#`, space, backspace, delete
 - Reduced timeout from 500ms to 300ms
 - Eliminated unnecessary processing during normal typing
+
+### Hash Mark Implementation (DEFERRED) ⏸️
+**Goal**: Display `#` character in left margin for headers
+**Current Status**: Headers work perfectly without hash marks, feature deferred
+
+**Technical Challenges Encountered**:
+1. **Container Clipping**: Hash marks positioned at `-4em` are outside visible container bounds
+2. **CSS Timing**: `::before` pseudo-elements not reliably applying to dynamically created elements
+3. **DOM Complexity**: Multiple approaches tried (CSS pseudo-elements, inline positioning, wrapper divs)
+
+**Debugging Results**:
+- Hash spans ARE created and positioned correctly (`offsetLeft: -80px`)
+- Elements exist in DOM with proper styling (`x: 429, width: 12px`)
+- Issue is container clipping, not positioning logic
+
+**Potential Solutions for Future Implementation**:
+1. **Expand Container Approach**: 
+   - Increase `.editor-container` left padding beyond current 120px
+   - Ensure `.editor-wrapper` and `.editor` have `overflow: visible`
+   - Test with padding of 140-160px to accommodate hash positioning
+
+2. **Alternative Container Architecture**:
+   ```css
+   .editor-with-margin {
+     position: relative;
+     margin-left: 3em;
+   }
+   .hash-container {
+     position: absolute;
+     left: -2.5em;
+     width: 2em;
+   }
+   ```
+
+3. **CSS Grid/Flexbox Approach**:
+   - Two-column layout with hash column and text column
+   - More predictable positioning but requires architectural changes
+
+4. **JavaScript Canvas/Overlay**:
+   - Render hash marks on separate positioned overlay
+   - More complex but guarantees visibility
+
+**Current Header Implementation (Working)**:
+- Font: 16px, weight 600, uppercase
+- Color: #555555 (darker than body text)
+- Letter-spacing: 0 (neutral spacing)
+- Semantic `<h1>` elements with CSS text-transform
+- Auto-space insertion: `#header` → `# header`
+- Enhanced text rendering: antialiased with optimizeLegibility
+
+### Typography Enhancement (COMPLETED) ✅
+**Enhancement**: Applied smooth text rendering to all text elements
+**Implementation**: 
+- Added `-webkit-font-smoothing: antialiased` to body and paragraph text
+- Added `text-rendering: optimizeLegibility` for optimal clarity
+- Enhanced caret size by 10% (3.3px width, 27.5px height)
+
+## NEXT MAJOR FEATURE: Semantic List Implementation (PLANNED) 📋
+
+### Overview
+Implement intelligent list functionality that mirrors the header system's elegance and semantic approach.
+
+### User Experience Requirements
+- **Trigger Pattern**: `- item` (dash + space + text)
+- **Auto-Space**: `-item` automatically becomes `- item` 
+- **Visual Style**: Tight left margin, proper indentation, minimal spacing
+- **Enter Behavior**: Creates new list item (line break) instead of paragraph break
+- **Semantic Structure**: Convert to proper `<ul>` and `<li>` elements
+
+### Technical Implementation Plan
+
+#### 1. Auto-Space Detection (Similar to Hash System)
+```javascript
+autoAddSpaceAfterDash() {
+    // Detect `-word` patterns at line start
+    // Insert space after dash: `-item` → `- item`
+    // Trigger only when typing letters after dash
+}
+```
+
+#### 2. List Detection and Conversion
+```javascript
+applyListStyling() {
+    // Find paragraphs that start with `- ` (dash + space)
+    // Convert `<p>- item</p>` to `<li>item</li>`
+    // Wrap consecutive list items in `<ul>` container
+    // Remove dash from content (similar to hash removal)
+}
+```
+
+#### 3. Enter Key Behavior in Lists
+```javascript
+// In keydown handler for Enter key:
+if (currentElementIsListItem) {
+    // Create new <li> instead of <p>
+    // Continue the list structure
+    // Position cursor properly
+}
+```
+
+#### 4. Semantic HTML Structure
+```html
+<!-- Input: - First item, - Second item -->
+<!-- Output: -->
+<ul>
+    <li>First item</li>
+    <li>Second item</li>
+</ul>
+```
+
+#### 5. CSS Styling Requirements
+```css
+.editor ul {
+    margin: 0 0 1.5em 0;
+    padding-left: 1.5em; /* Tight indent */
+    list-style: none; /* Custom bullets */
+}
+
+.editor li {
+    margin: 0 0 0.5em 0; /* Tight spacing between items */
+    position: relative;
+}
+
+.editor li::before {
+    content: "•";
+    position: absolute;
+    left: -1.2em;
+    color: #666666;
+}
+```
+
+### Implementation Phases
+
+#### Phase 1: Detection System ⏳
+- Implement `autoAddSpaceAfterDash()` function
+- Add dash pattern detection to keyup handler
+- Test auto-space insertion: `-item` → `- item`
+
+#### Phase 2: List Conversion ⏳
+- Create `applyListStyling()` function
+- Implement `<p>` to `<li>` conversion logic
+- Add `<ul>` wrapper creation for consecutive items
+- Preserve cursor position during conversion
+
+#### Phase 3: Enter Key Integration ⏳
+- Modify enter key handler to detect list context
+- Implement list item creation instead of paragraph breaks
+- Handle cursor positioning in new list items
+
+#### Phase 4: Visual Polish ⏳
+- Implement tight spacing and indentation CSS
+- Create custom bullet styling
+- Ensure consistent typography with body text
+- Test with multiple list items and nested scenarios
+
+### Technical Challenges Anticipated
+
+1. **List Grouping Logic**: Determining which consecutive `<li>` elements belong together
+2. **Cursor Management**: Maintaining proper cursor position during list conversions
+3. **Enter Key Context**: Detecting when cursor is in a list vs paragraph
+4. **List Termination**: Handling when user wants to exit list mode
+5. **Mixed Content**: Managing documents with both lists and headers
+
+### Integration with Existing Systems
+
+- **Follows Header Pattern**: Similar auto-space and semantic conversion approach
+- **Cursor Restoration**: Use same surgical cursor management as headers
+- **Performance**: Add dash/space to existing keystroke triggers
+- **Debug Logging**: Comprehensive logging following established patterns
+
+### Success Criteria
+
+- [ ] `- item` patterns automatically get space inserted
+- [ ] Text converts to proper semantic `<ul>/<li>` structure  
+- [ ] Enter creates new list items, not paragraphs
+- [ ] Visual styling matches design philosophy (tight, minimal)
+- [ ] Cursor positioning remains stable during conversions
+- [ ] Lists integrate seamlessly with existing header functionality
 
 ## MAJOR ARCHITECTURAL SHIFT: Semantic Structure (v2.0)
 

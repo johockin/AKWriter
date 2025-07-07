@@ -68,8 +68,8 @@ class AKWriter {
                 return;
             }
             
-            // Auto-add space after # when user types a letter
-            if (e.key.match(/[a-zA-Z]/)) {
+            // Auto-add space after # when user types a letter or space
+            if (e.key.match(/[a-zA-Z]/) || e.key === ' ') {
                 this.autoAddSpaceAfterHash();
             }
             
@@ -230,16 +230,7 @@ class AKWriter {
             }
         }
         
-        // Convert h1 elements back to p if they no longer start with #
-        this.editor.querySelectorAll('h1').forEach(h1 => {
-            if (!h1.textContent.trim().startsWith('# ')) {
-                console.log('🔄 Converting h1 back to p:', h1.textContent.substring(0, 30));
-                const p = document.createElement('p');
-                p.innerHTML = h1.innerHTML;
-                h1.parentElement.replaceChild(p, h1);
-                if (h1 === targetElement) targetElement = p;
-            }
-        });
+        // h1 elements should stay as h1 unless user explicitly removes the # (we'll handle this differently)
         
         // Find paragraphs that should be headers
         this.editor.querySelectorAll('p').forEach(p => {
@@ -247,8 +238,75 @@ class AKWriter {
             if (text.startsWith('# ') && !text.startsWith('## ')) {
                 console.log('✨ Converting p to h1:', text);
                 const h1 = document.createElement('h1');
-                h1.innerHTML = p.innerHTML;
-                p.parentElement.replaceChild(h1, p);
+                // Remove the "# " from the content since we'll add it with CSS
+                const headerText = text.substring(2);
+                
+                // Apply header styles directly with !important-level specificity
+                h1.style.cssText = `
+                    font-size: 16px !important;
+                    font-weight: 600 !important;
+                    text-transform: uppercase !important;
+                    letter-spacing: 0 !important;
+                    line-height: 1.7 !important;
+                    color: #555555 !important;
+                    margin: 4em 0 1em 0 !important;
+                    padding: 0 !important;
+                    position: relative !important;
+                    -webkit-font-smoothing: antialiased !important;
+                    text-rendering: optimizeLegibility !important;
+                `;
+                
+                // Set text content
+                h1.textContent = headerText;
+                
+                // Create a wrapper div that will contain both hash and h1
+                const wrapper = document.createElement('div');
+                wrapper.style.cssText = `
+                    position: relative !important;
+                    margin: 4em 0 1em 0 !important;
+                `;
+                
+                // Create hash span that appears outside the h1
+                const hashSpan = document.createElement('span');
+                hashSpan.textContent = '#';
+                hashSpan.style.cssText = `
+                    position: absolute !important;
+                    left: -4em !important;
+                    top: 0 !important;
+                    color: red !important;
+                    font-weight: 300 !important;
+                    font-size: 20px !important;
+                    background: yellow !important;
+                    z-index: 1000 !important;
+                    pointer-events: none !important;
+                `;
+                
+                // Reset h1 margin since wrapper handles it
+                h1.style.margin = '0 !important';
+                
+                // Assemble: wrapper contains both hash and h1
+                wrapper.appendChild(hashSpan);
+                wrapper.appendChild(h1);
+                
+                console.log('🔍 === DETAILED HASH DEBUG ===');
+                console.log('🔍 Wrapper element:', wrapper);
+                console.log('🔍 Hash span element:', hashSpan);
+                console.log('🔍 Hash span styles:', hashSpan.style.cssText);
+                console.log('🔍 Hash span bounding rect before insert:', hashSpan.getBoundingClientRect());
+                
+                p.parentElement.replaceChild(wrapper, p);
+                
+                // Debug after insertion
+                setTimeout(() => {
+                    console.log('🔍 Hash span bounding rect after insert:', hashSpan.getBoundingClientRect());
+                    console.log('🔍 Hash span computed style:', window.getComputedStyle(hashSpan));
+                    console.log('🔍 Hash span offsetParent:', hashSpan.offsetParent);
+                    console.log('🔍 Hash span offsetLeft:', hashSpan.offsetLeft);
+                    console.log('🔍 Hash span offsetTop:', hashSpan.offsetTop);
+                    console.log('🔍 Wrapper bounding rect:', wrapper.getBoundingClientRect());
+                    console.log('🔍 Is hash span in DOM?', document.contains(hashSpan));
+                    console.log('🔍 === END HASH DEBUG ===');
+                }, 100);
                 if (p === targetElement) targetElement = h1;
             }
         });
@@ -294,27 +352,27 @@ class AKWriter {
             const text = node.textContent;
             const pos = range.startOffset;
             
-            // Look for #letter pattern (hash followed immediately by letter)
-            if (pos > 0 && text[pos - 1].match(/[a-zA-Z]/)) {
-                const beforeLetter = text.substring(0, pos - 1);
-                // Check if the character before the letter is # and before that is start or whitespace
-                if (beforeLetter.endsWith('#') && (beforeLetter.length === 1 || beforeLetter[beforeLetter.length - 2].match(/\s/))) {
-                    console.log('🔧 Auto-adding space after #');
+            // Look for #word pattern (at start of line or after whitespace)
+            const textBeforeCursor = text.substring(0, pos);
+            const hashWordMatch = textBeforeCursor.match(/(^|\s)(#[a-zA-Z]+)$/);
+            
+            if (hashWordMatch) {
+                console.log('🔧 Auto-adding space after #');
                 
-                    // Insert space before the letter
-                    const newText = text.substring(0, pos - 1) + ' ' + text.substring(pos - 1);
-                    node.textContent = newText;
-                    
-                    // Move cursor to after the space
-                    range.setStart(node, pos + 1);
-                    range.collapse(true);
-                    selection.removeAllRanges();
-                    selection.addRange(range);
-                    
-                    // Trigger header processing after space is added
-                    clearTimeout(this.markdownTimeout);
-                    this.markdownTimeout = setTimeout(() => this.applyHeaderStyling(), 100);
-                }
+                // Insert space after the #
+                const hashStart = hashWordMatch.index + hashWordMatch[1].length + 1; // Position after #
+                const newText = text.substring(0, hashStart) + ' ' + text.substring(hashStart);
+                node.textContent = newText;
+                
+                // Move cursor to after the inserted space
+                range.setStart(node, pos + 1);
+                range.collapse(true);
+                selection.removeAllRanges();
+                selection.addRange(range);
+                
+                // Trigger header processing after space is added
+                clearTimeout(this.markdownTimeout);
+                this.markdownTimeout = setTimeout(() => this.applyHeaderStyling(), 100);
             }
         }
     }

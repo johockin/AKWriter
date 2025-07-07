@@ -6,8 +6,8 @@
 
 body {
     font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'San Francisco', 'Helvetica Neue', Helvetica, Arial, sans-serif;
-    background: #ffffff;
-    color: #333333;
+    background: #fafafa;
+    color: #1f1f1f;
     height: 100vh;
     overflow: hidden;
 }
@@ -23,8 +23,8 @@ body {
     display: flex;
     justify-content: center;
     align-items: flex-start;
-    padding: 100px 30px 50px;
-    overflow: hidden;
+    padding: 100px 30px 50px 120px;
+    overflow: visible;
 }
 
 .editor-wrapper {
@@ -32,6 +32,7 @@ body {
     width: 100%;
     max-width: 720px;
     height: 70vh;
+    overflow: visible;
 }
 
 .editor {
@@ -44,14 +45,17 @@ body {
     font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'San Francisco', 'Helvetica Neue', Helvetica, Arial, sans-serif;
     font-size: 18px;
     line-height: 1.7;
-    color: #333333;
-    font-weight: 300;
+    color: #1f1f1f;
+    font-weight: 350;
     letter-spacing: 0.005em;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
     caret-color: transparent;
     white-space: pre-wrap;
     word-wrap: break-word;
     hyphens: none;
-    overflow-y: hidden;
+    overflow-y: auto;
+    overflow-x: visible;
     scrollbar-width: none;
     -ms-overflow-style: none;
 }
@@ -66,8 +70,8 @@ body {
 
 .custom-caret {
     position: absolute;
-    width: 3px;
-    height: 25px;
+    width: 3.3px;
+    height: 27.5px;
     background: #007aff;
     pointer-events: none;
     z-index: 1000;
@@ -86,8 +90,10 @@ body {
     margin: 0 0 1.5em 0;
     line-height: 1.7;
     font-size: 18px;
-    font-weight: 300;
-    color: #333333;
+    font-weight: 350;
+    color: #1f1f1f;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
 }
 
 .editor p:last-child {
@@ -95,16 +101,18 @@ body {
 }
 
 /* Semantic header styles */
-.editor h1 {
-    font-size: 17px !important;
-    font-weight: 300 !important;
+h1 {
+    font-size: 16px !important;
+    font-weight: 550 !important;
     text-transform: uppercase !important;
-    letter-spacing: 0.0375em !important;
+    letter-spacing: -0.04em !important;
     line-height: 1.7 !important;
-    color: #333333 !important;
+    color: #808080 !important;
     margin: 4em 0 1em 0 !important;
     padding: 0 !important;
+    position: relative !important;
 }
+
 
 .editor h1:first-child {
     margin-top: 0 !important;
