@@ -14,7 +14,7 @@ class AKWriter {
     }
     
     setupEventListeners() {
-        // Handle enter key - ROBUST VERSION
+        // Handle enter key - SEMANTIC VERSION
         this.editor.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') {
                 e.preventDefault();
@@ -24,7 +24,7 @@ class AKWriter {
                 const range = selection.getRangeAt(0);
                 
                 if (e.shiftKey) {
-                    // Shift+Enter: insert single line break
+                    // Shift+Enter: insert line break within current paragraph
                     const br = document.createElement('br');
                     range.deleteContents();
                     range.insertNode(br);
@@ -33,20 +33,11 @@ class AKWriter {
                     selection.removeAllRanges();
                     selection.addRange(range);
                 } else {
-                    // Enter: insert paragraph break (double line break per spec)
-                    const br1 = document.createElement('br');
-                    const br2 = document.createElement('br');
-                    range.deleteContents();
-                    range.insertNode(br1);
-                    range.setStartAfter(br1);
-                    range.insertNode(br2);
-                    range.setStartAfter(br2);
-                    range.collapse(true);
-                    selection.removeAllRanges();
-                    selection.addRange(range);
+                    // Enter: create new paragraph
+                    this.createNewParagraph(range);
                 }
                 
-                // Update caret position and clear any header styling from new line
+                // Update caret position and process markdown
                 setTimeout(() => {
                     this.updateCaretPosition();
                     this.applyHeaderStyling();
@@ -109,74 +100,155 @@ class AKWriter {
         }
     }
     
-    applyHeaderStyling() {
-        console.log('🔍 === HEADER STYLING DEBUG ===');
+    createNewParagraph(range) {
+        console.log('📄 Creating new paragraph');
         
-        // Clear all existing header classes
-        const existingHeaders = this.editor.querySelectorAll('.header-1');
-        console.log('🧹 Clearing', existingHeaders.length, 'existing headers');
-        existingHeaders.forEach(el => {
-            console.log('🧹 Removing .header-1 from:', el.tagName, el.textContent?.substring(0, 50));
-            el.classList.remove('header-1');
+        // Find the current paragraph element
+        let currentParagraph = range.startContainer;
+        while (currentParagraph && currentParagraph !== this.editor && 
+               !['P', 'H1', 'H2', 'H3'].includes(currentParagraph.tagName)) {
+            currentParagraph = currentParagraph.parentElement;
+        }
+        
+        // If we're not in a paragraph, create one
+        if (!currentParagraph || currentParagraph === this.editor) {
+            console.log('📄 Not in paragraph, wrapping current content');
+            const newP = document.createElement('p');
+            
+            // Get any selected content
+            if (!range.collapsed) {
+                newP.appendChild(range.extractContents());
+            }
+            
+            // Insert the new paragraph
+            range.insertNode(newP);
+            
+            // Create another paragraph for cursor
+            const nextP = document.createElement('p');
+            nextP.innerHTML = '<br>'; // Empty paragraph needs br for cursor positioning
+            this.editor.insertBefore(nextP, newP.nextSibling);
+            
+            // Position cursor in new paragraph
+            range.setStart(nextP, 0);
+            range.collapse(true);
+            const selection = window.getSelection();
+            selection.removeAllRanges();
+            selection.addRange(range);
+            return;
+        }
+        
+        console.log('📄 In paragraph:', currentParagraph.tagName);
+        
+        // Split the current paragraph at cursor position
+        const beforeCursor = range.cloneRange();
+        beforeCursor.setStartBefore(currentParagraph);
+        const beforeContent = beforeCursor.extractContents();
+        
+        const afterCursor = range.cloneRange();
+        afterCursor.setEndAfter(currentParagraph);
+        const afterContent = afterCursor.extractContents();
+        
+        // Create new paragraph for content after cursor
+        const newParagraph = document.createElement('p');
+        if (afterContent.textContent.trim()) {
+            newParagraph.appendChild(afterContent);
+        } else {
+            newParagraph.innerHTML = '<br>'; // Empty paragraph needs br for cursor
+        }
+        
+        // Insert new paragraph after current one
+        this.editor.insertBefore(newParagraph, currentParagraph.nextSibling);
+        
+        // Clean up current paragraph with content before cursor
+        if (beforeContent.textContent.trim()) {
+            currentParagraph.innerHTML = '';
+            currentParagraph.appendChild(beforeContent);
+        }
+        
+        // Position cursor at start of new paragraph
+        range.setStart(newParagraph, 0);
+        range.collapse(true);
+        const selection = window.getSelection();
+        selection.removeAllRanges();
+        selection.addRange(range);
+        
+        console.log('✅ Created new paragraph');
+    }
+
+    applyHeaderStyling() {
+        console.log('🔍 === SEMANTIC HEADER STYLING ===');
+        
+        // Save current cursor position
+        const selection = window.getSelection();
+        let cursorElement = null;
+        let cursorOffset = 0;
+        
+        if (selection.rangeCount > 0) {
+            const range = selection.getRangeAt(0);
+            cursorElement = range.startContainer;
+            cursorOffset = range.startOffset;
+            
+            // Find the containing paragraph or header
+            let container = cursorElement;
+            while (container && !['P', 'H1'].includes(container.tagName)) {
+                container = container.parentElement;
+            }
+            cursorElement = container;
+        }
+        
+        // Convert h1 elements back to p if they no longer start with #
+        this.editor.querySelectorAll('h1').forEach(h1 => {
+            if (!h1.textContent.trim().startsWith('# ')) {
+                console.log('🔄 Converting h1 back to p:', h1.textContent.substring(0, 30));
+                const p = document.createElement('p');
+                p.innerHTML = h1.innerHTML;
+                const wasCurrentElement = (h1 === cursorElement);
+                h1.parentElement.replaceChild(p, h1);
+                if (wasCurrentElement) cursorElement = p;
+            }
         });
         
-        // Find all text nodes that start with "# "
+        // Find paragraphs that should be headers
+        this.editor.querySelectorAll('p').forEach(p => {
+            const text = p.textContent.trim();
+            if (text.startsWith('# ') && !text.startsWith('## ')) {
+                console.log('✨ Converting p to h1:', text);
+                const h1 = document.createElement('h1');
+                h1.innerHTML = p.innerHTML;
+                const wasCurrentElement = (p === cursorElement);
+                p.parentElement.replaceChild(h1, p);
+                if (wasCurrentElement) cursorElement = h1;
+            }
+        });
+        
+        // Restore cursor position
+        if (cursorElement && selection.rangeCount > 0) {
+            try {
+                const range = document.createRange();
+                const firstTextNode = this.getFirstTextNode(cursorElement);
+                if (firstTextNode) {
+                    range.setStart(firstTextNode, Math.min(cursorOffset, firstTextNode.textContent.length));
+                    range.collapse(true);
+                    selection.removeAllRanges();
+                    selection.addRange(range);
+                    console.log('✅ Restored cursor position');
+                }
+            } catch (e) {
+                console.log('⚠️ Could not restore cursor position');
+            }
+        }
+        
+        console.log('🔍 === END SEMANTIC HEADER STYLING ===');
+    }
+    
+    getFirstTextNode(element) {
         const walker = document.createTreeWalker(
-            this.editor,
+            element,
             NodeFilter.SHOW_TEXT,
             null,
             false
         );
-        
-        let node;
-        let headerCount = 0;
-        const foundNodes = [];
-        
-        while (node = walker.nextNode()) {
-            const text = node.textContent.trim();
-            foundNodes.push(text);
-            console.log('📝 Text node:', `"${text.substring(0, 50)}..."`);
-            console.log('🏷️ Parent:', node.parentElement?.tagName, node.parentElement?.className);
-            
-            if (text.startsWith('# ') && !text.startsWith('## ')) {
-                console.log('✨ FOUND HEADER:', `"${text}"`);
-                
-                if (node.parentElement) {
-                    // ALWAYS create a new span wrapper for headers, regardless of parent
-                    console.log('🎯 Creating individual span wrapper for header');
-                    const span = document.createElement('span');
-                    span.className = 'header-1';
-                    
-                    // Insert the new span before the text node
-                    node.parentElement.insertBefore(span, node);
-                    // Move ONLY this text node into the new span
-                    span.appendChild(node);
-                    headerCount++;
-                    console.log('✅ Created individual span wrapper with .header-1');
-                    console.log('🔍 Header span contains:', span.textContent);
-                    
-                    // Verify what happened
-                    setTimeout(() => {
-                        const allHeaders = this.editor.querySelectorAll('.header-1');
-                        console.log('🔍 After processing, found', allHeaders.length, 'elements with .header-1');
-                        allHeaders.forEach((el, i) => {
-                            console.log(`📍 Header ${i+1}:`, el.tagName, el.textContent?.substring(0, 30));
-                            if (el === this.editor) {
-                                console.log('🚨 CRITICAL: Editor itself has .header-1 class!');
-                            }
-                        });
-                    }, 10);
-                } else {
-                    console.log('❌ No parent element');
-                }
-            }
-        }
-        
-        console.log('📊 Summary:');
-        console.log('📊 Total text nodes:', foundNodes.length);
-        console.log('📊 Headers processed:', headerCount);
-        console.log('📊 All text nodes:', foundNodes.map(t => t.substring(0, 20)));
-        console.log('🔍 === END HEADER DEBUG ===');
+        return walker.nextNode();
     }
     
     getAbsoluteOffset(node, offset) {
@@ -355,8 +427,46 @@ class AKWriter {
         const savedContent = localStorage.getItem('akwriter-content');
         if (savedContent) {
             this.editor.innerHTML = savedContent;
-            // Just apply header styling to existing content, don't rebuild
-            setTimeout(() => this.applyHeaderStyling(), 100);
+            // Convert any existing content to semantic structure
+            setTimeout(() => {
+                this.convertToSemanticStructure();
+                this.applyHeaderStyling();
+            }, 100);
+        } else {
+            // Initialize with empty paragraph
+            this.editor.innerHTML = '<p><br></p>';
+        }
+    }
+    
+    convertToSemanticStructure() {
+        console.log('🔄 Converting to semantic structure');
+        
+        // If editor only has text nodes or br tags, wrap in paragraphs
+        const content = this.editor.innerHTML;
+        
+        // Split by double br tags (old paragraph breaks)
+        const paragraphs = content.split(/<br\s*\/?>\s*<br\s*\/?>/i);
+        
+        if (paragraphs.length > 1) {
+            console.log('🔄 Found br-based content, converting to paragraphs');
+            let newHTML = '';
+            
+            paragraphs.forEach(para => {
+                const cleanPara = para.replace(/<br\s*\/?>/gi, '<br>').trim();
+                if (cleanPara) {
+                    const text = cleanPara.replace(/<[^>]*>/g, '').trim();
+                    if (text.startsWith('# ') && !text.startsWith('## ')) {
+                        newHTML += `<h1>${cleanPara}</h1>`;
+                    } else {
+                        newHTML += `<p>${cleanPara || '<br>'}</p>`;
+                    }
+                }
+            });
+            
+            if (newHTML) {
+                this.editor.innerHTML = newHTML;
+                console.log('✅ Converted to semantic structure');
+            }
         }
     }
     

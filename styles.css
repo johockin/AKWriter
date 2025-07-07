@@ -81,24 +81,31 @@ body {
     67%, 100% { opacity: 0; }
 }
 
-/* Header styles */
-.header-1 {
+/* Semantic paragraph styles */
+.editor p {
+    margin: 0 0 1.5em 0;
+    line-height: 1.7;
+    font-size: 18px;
+    font-weight: 300;
+    color: #333333;
+}
+
+.editor p:last-child {
+    margin-bottom: 0;
+}
+
+/* Semantic header styles */
+.editor h1 {
     font-size: 17px !important;
     font-weight: 450 !important;
     text-transform: uppercase !important;
     letter-spacing: 0.075em !important;
-    display: block !important;
-    margin-top: 4em !important;
-    margin-bottom: 1em !important;
     line-height: 1.7 !important;
     color: #333333 !important;
+    margin: 4em 0 1em 0 !important;
+    padding: 0 !important;
 }
 
-/* Regular div spacing */
-.editor > div {
-    margin-bottom: 0.5em;
-}
-
-.editor > div:empty {
-    margin-bottom: 1.5em;
+.editor h1:first-child {
+    margin-top: 0 !important;
 }
