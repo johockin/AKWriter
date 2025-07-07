@@ -92,23 +92,6 @@ body {
     margin-bottom: 1em !important;
     line-height: 1.7 !important;
     color: #333333 !important;
-    position: relative !important;
-}
-
-/* Style the hash mark to be nearly invisible and in margin */
-.header-1::before {
-    content: "# ";
-    position: absolute !important;
-    left: -30px !important;
-    color: #f0f0f0 !important;
-    font-weight: 300 !important;
-    text-transform: none !important;
-}
-
-/* Hide the actual # character in the text */
-.header-1 {
-    text-indent: -1ch !important;
-    padding-left: 1ch !important;
 }
 
 /* Regular div spacing */
