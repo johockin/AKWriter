@@ -232,6 +232,23 @@ class AKWriter {
         
         // h1 elements should stay as h1 unless user explicitly removes the # (we'll handle this differently)
         
+        // Update existing h1 elements with current styles
+        this.editor.querySelectorAll('h1').forEach(h1 => {
+            h1.style.cssText = `
+                font-size: 18px !important;
+                font-weight: 550 !important;
+                text-transform: uppercase !important;
+                letter-spacing: 0 !important;
+                line-height: 1.7 !important;
+                color: #555555 !important;
+                margin: 4em 0 1em 0 !important;
+                padding: 0 !important;
+                position: relative !important;
+                -webkit-font-smoothing: subpixel-antialiased !important;
+                text-rendering: optimizeLegibility !important;
+            `;
+        });
+
         // Find paragraphs that should be headers
         this.editor.querySelectorAll('p').forEach(p => {
             const text = p.textContent.trim();
@@ -243,8 +260,8 @@ class AKWriter {
                 
                 // Apply header styles directly with !important-level specificity
                 h1.style.cssText = `
-                    font-size: 16px !important;
-                    font-weight: 600 !important;
+                    font-size: 18px !important;
+                    font-weight: 550 !important;
                     text-transform: uppercase !important;
                     letter-spacing: 0 !important;
                     line-height: 1.7 !important;
@@ -252,7 +269,7 @@ class AKWriter {
                     margin: 4em 0 1em 0 !important;
                     padding: 0 !important;
                     position: relative !important;
-                    -webkit-font-smoothing: antialiased !important;
+                    -webkit-font-smoothing: subpixel-antialiased !important;
                     text-rendering: optimizeLegibility !important;
                 `;
                 
