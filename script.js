@@ -84,6 +84,39 @@ class AKWriter {
         this.editor.addEventListener('focus', () => this.showCaret());
         this.editor.addEventListener('blur', () => this.hideCaret());
         
+        // Paste protection - strip all formatting and only allow plain text
+        this.editor.addEventListener('paste', (e) => {
+            e.preventDefault();
+            console.log('🛡️ Intercepting paste - stripping all formatting');
+            
+            // Get plain text only from clipboard
+            const text = (e.clipboardData || window.clipboardData).getData('text/plain');
+            
+            if (text) {
+                // Insert plain text at cursor position
+                const selection = window.getSelection();
+                if (selection.rangeCount > 0) {
+                    const range = selection.getRangeAt(0);
+                    range.deleteContents();
+                    range.insertNode(document.createTextNode(text));
+                    
+                    // Move cursor to end of inserted text
+                    range.setStartAfter(range.endContainer);
+                    range.collapse(true);
+                    selection.removeAllRanges();
+                    selection.addRange(range);
+                    
+                    // Update caret position and apply our semantic processing
+                    this.updateCaretPosition();
+                    
+                    // Apply header styling after paste to handle any # patterns
+                    setTimeout(() => this.applyHeaderStyling(), 100);
+                    
+                    console.log('✅ Plain text pasted successfully');
+                }
+            }
+        });
+        
         // Focus editor when clicking anywhere in the container
         document.querySelector('.editor-container').addEventListener('click', (e) => {
             if (e.target === e.currentTarget || e.target.classList.contains('editor-wrapper')) {
