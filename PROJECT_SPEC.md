@@ -298,6 +298,78 @@ class AKWriter {
 - Added `text-rendering: optimizeLegibility` for optimal clarity
 - Enhanced caret size by 10% (3.3px width, 27.5px height)
 
+## URGENT FIX NEEDED: Header Conversion System (v1.3) 🚨
+
+### Problem Summary
+The current header conversion system has critical flaws that break the writing experience:
+
+1. **Line Break Headers Don't Work**: Headers after Shift+Enter (line breaks) don't convert
+2. **Cursor Jumping**: When typing second header, cursor jumps into previous header  
+3. **Element Displacement**: Headers jump around document, DOM manipulation disrupts structure
+4. **Mixed Content Failure**: Can't handle `paragraph text<br># header<br>more text`
+
+### Root Cause
+Current system processes entire `<p>` elements as atomic units, but headers can exist as lines within paragraphs (after `<br>` tags). Need **line-by-line processing** instead of paragraph-by-paragraph.
+
+### Solution Architecture (v1.3)
+
+#### **Phase 1: Line-by-Line Content Parser**
+```javascript
+parseDocumentLines() {
+    // Split all content into logical lines
+    // Handle both <br> separators and paragraph boundaries
+    // Return array of line objects: { content, type, element, position }
+}
+```
+
+#### **Phase 2: Smart Content Splitter**
+```javascript
+splitMixedContent(paragraph) {
+    // Split paragraphs containing headers
+    // Example: "text<br># header<br>more" → [p, h1, p]
+    // Preserve cursor position during splits
+}
+```
+
+#### **Phase 3: Incremental Processing**
+```javascript
+processContentChanges() {
+    // Only process changed lines, not entire document
+    // Track what's been processed to avoid duplicates
+    // Handle cursor restoration per change
+}
+```
+
+#### **Phase 4: Advanced Cursor Management**
+```javascript
+preserveCursorContext() {
+    // Save cursor position relative to document structure
+    // Restore position after DOM changes
+    // Handle edge cases like element splitting
+}
+```
+
+### Key Design Principles
+1. **Minimal DOM Changes**: Only modify what needs to change
+2. **Incremental Processing**: Process changes as they happen
+3. **Cursor-First Design**: Cursor position preserved through all changes
+4. **Line-Based Logic**: Think in terms of lines, not paragraphs
+5. **Rollback Capability**: Can revert changes if issues occur
+
+### Implementation Decisions
+- **Replacement System**: Replace current header logic entirely (no parallel system to avoid bloat)
+- **Auto-Space Insertion**: Maintain `#header` → `# header` functionality
+- **Processing Pause**: Allow temporary pause during conversion for robustness
+- **Performance Target**: Handle 100+ lines smoothly (edge case but possible)
+
+### Testing Requirements
+- Headers after line breaks (Shift+Enter) ✅
+- Multiple headers in sequence ✅
+- Mixed content splitting ✅
+- Cursor stability during conversions ✅
+- Empty lines before headers ✅
+- Performance with longer documents ✅
+
 ## NEXT MAJOR FEATURE: Semantic List Implementation (PLANNED) 📋
 
 ### Overview
@@ -460,6 +532,43 @@ if (currentElementIsListItem) {
 - **Semantic Margins**: `p { margin-bottom: 1.5em }`, `h1 { margin: 4em 0 1em 0 }`
 - **Consistent Colors**: Headers match body text (#333333)
 - **Professional Spacing**: Each element has proper identity-based spacing
+
+## Development Pipeline - Next Features 
+
+### Immediate Improvements (Easy Wins)
+1. **CSS Custom Properties for Theming** 🎨
+   - Add CSS variables for colors, fonts, and spacing
+   - Improve maintainability and future theme support
+   - Implementation: Add `:root` variables following Google Docs pattern
+
+2. **Performance Timing Metrics** ⚡
+   - Add Google Docs-style timing measurement
+   - Track load time, keystroke response, parsing operations
+   - Implementation: Add `AK_timing` object with milestone tracking
+
+3. **Modular Architecture Separation** 🏗️
+   - Separate text editing, markdown processing, and file operations
+   - Follow Google Docs' approach of separating UI from content logic
+   - Implementation: Refactor `AKWriter` class into focused modules
+
+### Future Web App Considerations 🌐
+When/if converting to a full web application, these items will need attention:
+
+1. **Font Loading Strategy**
+   - Implement web font loading with fallbacks
+   - Add font caching and preloading
+   - Consider Google Fonts integration or custom font hosting
+
+2. **Accessibility Enhancements**
+   - Proper ARIA labels and roles
+   - Screen reader support
+   - Keyboard navigation improvements
+   - High contrast mode support
+
+3. **Advanced Font System**
+   - Move beyond system fonts to web fonts
+   - Implement font variation support
+   - Add typography fine-tuning controls
 
 ## Handoff Notes
 - This is a web-based application designed for macOS users

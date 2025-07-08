@@ -1,16 +1,42 @@
+// Performance timing system (inspired by Google Docs)
+var AK_timing = {};
+AK_timing['start'] = new Date().getTime();
+
+// Performance analytics tracking
+var AK_analytics = {
+    keystrokes: 0,
+    fastKeystrokes: 0,
+    slowKeystrokes: 0,
+    headerParses: 0,
+    slowParses: 0,
+    autoSpaceInsertions: 0,
+    caretUpdates: 0,
+    slowCaretUpdates: 0,
+    totalKeystrokeTime: 0,
+    totalParseTime: 0,
+    totalCaretTime: 0,
+    sessionStart: performance.now()
+};
+
 class AKWriter {
     constructor() {
+        AK_timing['constructor_start'] = new Date().getTime();
         this.editor = document.querySelector('.editor');
         this.customCaret = document.querySelector('.custom-caret');
         this.init();
+        AK_timing['constructor_end'] = new Date().getTime();
     }
     
     init() {
+        AK_timing['init_start'] = new Date().getTime();
         this.setupEventListeners();
         this.loadSavedContent();
         this.editor.focus();
         this.updateCaretPosition();
+        AK_timing['init_end'] = new Date().getTime();
         
+        // Log performance metrics
+        this.logPerformanceMetrics();
     }
     
     setupEventListeners() {
@@ -61,7 +87,26 @@ class AKWriter {
         
         // Track cursor and process markdown
         this.editor.addEventListener('keyup', (e) => {
+            const keystrokeStart = performance.now();
             this.updateCaretPosition();
+            const keystrokeEnd = performance.now();
+            
+            // Analytics tracking
+            AK_analytics.keystrokes++;
+            const keystrokeTime = keystrokeEnd - keystrokeStart;
+            AK_analytics.totalKeystrokeTime += keystrokeTime;
+            
+            if (keystrokeTime > 16) {
+                AK_analytics.slowKeystrokes++;
+                console.warn(`⚠️ Slow keystroke: ${keystrokeTime.toFixed(2)}ms (key: ${e.key})`);
+            } else {
+                AK_analytics.fastKeystrokes++;
+            }
+            
+            // Detailed keystroke logging every 50 keystrokes
+            if (AK_analytics.keystrokes % 50 === 0) {
+                this.logKeystrokeStats();
+            }
             
             // Skip ALL processing for Shift+Enter - it's just a line break
             if (e.shiftKey && e.key === 'Enter') {
@@ -70,17 +115,57 @@ class AKWriter {
             
             // Auto-add space after # when user types a letter or space
             if (e.key.match(/[a-zA-Z]/) || e.key === ' ') {
-                this.autoAddSpaceAfterHash();
+                const spaceStart = performance.now();
+                const spaceInserted = this.autoAddSpaceAfterHash();
+                const spaceEnd = performance.now();
+                
+                if (spaceInserted) {
+                    AK_analytics.autoSpaceInsertions++;
+                    console.log(`✨ Auto-space inserted after # (${(spaceEnd - spaceStart).toFixed(2)}ms)`);
+                }
             }
             
             // Only process headers for specific keys that could affect header status
             if (e.key === '#' || e.key === ' ' || e.key === 'Backspace' || e.key === 'Delete') {
                 clearTimeout(this.markdownTimeout);
-                this.markdownTimeout = setTimeout(() => this.applyHeaderStyling(), 300);
+                this.markdownTimeout = setTimeout(() => {
+                    const parseStart = performance.now();
+                    this.applyHeaderStyling();
+                    const parseEnd = performance.now();
+                    
+                    // Analytics tracking
+                    AK_analytics.headerParses++;
+                    const parseTime = parseEnd - parseStart;
+                    AK_analytics.totalParseTime += parseTime;
+                    
+                    if (parseTime > 10) {
+                        AK_analytics.slowParses++;
+                        console.warn(`⚠️ Slow header parsing: ${parseTime.toFixed(2)}ms (parse #${AK_analytics.headerParses})`);
+                    }
+                    
+                    // Detailed parse logging every 10 parses
+                    if (AK_analytics.headerParses % 10 === 0) {
+                        this.logParseStats();
+                    }
+                }, 300);
             }
         });
         
-        this.editor.addEventListener('click', () => this.updateCaretPosition());
+        this.editor.addEventListener('click', () => {
+            const caretStart = performance.now();
+            this.updateCaretPosition();
+            const caretEnd = performance.now();
+            
+            // Analytics tracking for caret updates
+            AK_analytics.caretUpdates++;
+            const caretTime = caretEnd - caretStart;
+            AK_analytics.totalCaretTime += caretTime;
+            
+            if (caretTime > 5) {
+                AK_analytics.slowCaretUpdates++;
+                console.warn(`⚠️ Slow caret update: ${caretTime.toFixed(2)}ms`);
+            }
+        });
         this.editor.addEventListener('focus', () => this.showCaret());
         this.editor.addEventListener('blur', () => this.hideCaret());
         
@@ -132,15 +217,26 @@ class AKWriter {
             }
         });
         
-        // File operations
+        // File operations and debug shortcuts
         document.addEventListener('keydown', (e) => {
             if (e.metaKey && e.key === 's') {
                 e.preventDefault();
                 this.saveText();
-            }
-            if (e.metaKey && e.key === 'o') {
+            } else if (e.metaKey && e.key === 'o') {
                 e.preventDefault();
                 this.openFile();
+            } else if (e.metaKey && e.shiftKey && e.key === 'D') {
+                // Cmd+Shift+D: Show debug performance summary
+                e.preventDefault();
+                this.logSessionSummary();
+            } else if (e.metaKey && e.shiftKey && e.key === 'K') {
+                // Cmd+Shift+K: Show keystroke stats
+                e.preventDefault();
+                this.logKeystrokeStats();
+            } else if (e.metaKey && e.shiftKey && e.key === 'P') {
+                // Cmd+Shift+P: Show parse stats
+                e.preventDefault();
+                this.logParseStats();
             }
         });
         
@@ -393,7 +489,7 @@ class AKWriter {
     
     autoAddSpaceAfterHash() {
         const selection = window.getSelection();
-        if (selection.rangeCount === 0) return;
+        if (selection.rangeCount === 0) return false;
         
         const range = selection.getRangeAt(0);
         const node = range.startContainer;
@@ -423,8 +519,12 @@ class AKWriter {
                 // Trigger header processing after space is added
                 clearTimeout(this.markdownTimeout);
                 this.markdownTimeout = setTimeout(() => this.applyHeaderStyling(), 100);
+                
+                return true;
             }
         }
+        
+        return false;
     }
     
     getAbsoluteOffset(node, offset) {
@@ -686,6 +786,84 @@ class AKWriter {
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
+    }
+    
+    logPerformanceMetrics() {
+        const constructorTime = AK_timing['constructor_end'] - AK_timing['constructor_start'];
+        const initTime = AK_timing['init_end'] - AK_timing['init_start'];
+        const totalTime = AK_timing['init_end'] - AK_timing['start'];
+        
+        console.log('🚀 AKWriter Performance Metrics:');
+        console.log(`   Constructor: ${constructorTime}ms`);
+        console.log(`   Initialization: ${initTime}ms`);
+        console.log(`   Total Load: ${totalTime}ms`);
+        
+        // Warn if load time is slow
+        if (totalTime > 200) {
+            console.warn(`⚠️ Load time exceeded target: ${totalTime}ms > 200ms`);
+        } else {
+            console.log(`✅ Load time within target: ${totalTime}ms < 200ms`);
+        }
+    }
+    
+    logKeystrokeStats() {
+        const avgKeystroke = AK_analytics.totalKeystrokeTime / AK_analytics.keystrokes;
+        const slowPercentage = (AK_analytics.slowKeystrokes / AK_analytics.keystrokes * 100).toFixed(1);
+        
+        console.log('⌨️ Keystroke Performance Analysis:');
+        console.log(`   Total Keystrokes: ${AK_analytics.keystrokes}`);
+        console.log(`   Average Response: ${avgKeystroke.toFixed(2)}ms`);
+        console.log(`   Fast Keystrokes: ${AK_analytics.fastKeystrokes} (${(100 - slowPercentage)}%)`);
+        console.log(`   Slow Keystrokes: ${AK_analytics.slowKeystrokes} (${slowPercentage}%)`);
+        console.log(`   Auto-Space Insertions: ${AK_analytics.autoSpaceInsertions}`);
+        console.log(`   Caret Updates: ${AK_analytics.caretUpdates} (${AK_analytics.slowCaretUpdates} slow)`);
+        
+        if (avgKeystroke > 10) {
+            console.warn(`⚠️ Average keystroke response is slow: ${avgKeystroke.toFixed(2)}ms`);
+        }
+    }
+    
+    logParseStats() {
+        const avgParse = AK_analytics.totalParseTime / AK_analytics.headerParses;
+        const slowParsePercentage = (AK_analytics.slowParses / AK_analytics.headerParses * 100).toFixed(1);
+        
+        console.log('📄 Header Parse Performance:');
+        console.log(`   Total Parses: ${AK_analytics.headerParses}`);
+        console.log(`   Average Parse Time: ${avgParse.toFixed(2)}ms`);
+        console.log(`   Slow Parses: ${AK_analytics.slowParses} (${slowParsePercentage}%)`);
+        
+        if (avgParse > 5) {
+            console.warn(`⚠️ Average parse time is slow: ${avgParse.toFixed(2)}ms`);
+        }
+    }
+    
+    logSessionSummary() {
+        const sessionTime = (performance.now() - AK_analytics.sessionStart) / 1000;
+        const keystrokesPerMinute = (AK_analytics.keystrokes / (sessionTime / 60)).toFixed(1);
+        
+        console.log('📊 Session Summary:');
+        console.log(`   Session Duration: ${sessionTime.toFixed(1)}s`);
+        console.log(`   Keystrokes/Minute: ${keystrokesPerMinute}`);
+        console.log(`   Total Operations: ${AK_analytics.keystrokes + AK_analytics.headerParses + AK_analytics.caretUpdates}`);
+        console.log(`   Performance Score: ${this.calculatePerformanceScore()}/100`);
+    }
+    
+    calculatePerformanceScore() {
+        let score = 100;
+        
+        // Deduct for slow keystrokes
+        const slowKeystrokeRatio = AK_analytics.slowKeystrokes / Math.max(AK_analytics.keystrokes, 1);
+        score -= slowKeystrokeRatio * 30;
+        
+        // Deduct for slow parses
+        const slowParseRatio = AK_analytics.slowParses / Math.max(AK_analytics.headerParses, 1);
+        score -= slowParseRatio * 20;
+        
+        // Deduct for slow caret updates
+        const slowCaretRatio = AK_analytics.slowCaretUpdates / Math.max(AK_analytics.caretUpdates, 1);
+        score -= slowCaretRatio * 15;
+        
+        return Math.max(0, Math.round(score));
     }
 }
 

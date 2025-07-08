@@ -1,3 +1,33 @@
+:root {
+    /* Color System */
+    --ak-bg-color: #f5f5f5;
+    --ak-text-color: #2a2a2a;
+    --ak-header-color: #555555;
+    --ak-caret-color: #007aff;
+    
+    /* Typography System */
+    --ak-font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'San Francisco', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    --ak-font-size: 18px;
+    --ak-font-weight: 350;
+    --ak-header-weight: 550;
+    --ak-line-height: 1.7;
+    --ak-letter-spacing: 0.005em;
+    
+    /* Spacing System */
+    --ak-paragraph-margin: 1.5em;
+    --ak-header-margin-top: 4em;
+    --ak-header-margin-bottom: 1em;
+    --ak-container-padding-top: 100px;
+    --ak-container-padding-side: 30px;
+    --ak-container-padding-left: 120px;
+    --ak-container-padding-bottom: 50px;
+    
+    /* Caret System */
+    --ak-caret-width: 3.3px;
+    --ak-caret-height: 27.5px;
+    --ak-caret-radius: 1px;
+}
+
 * {
     margin: 0;
     padding: 0;
@@ -5,9 +35,9 @@
 }
 
 body {
-    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'San Francisco', 'Helvetica Neue', Helvetica, Arial, sans-serif;
-    background: #f5f5f5;
-    color: #2a2a2a;
+    font-family: var(--ak-font-family);
+    background: var(--ak-bg-color);
+    color: var(--ak-text-color);
     height: 100vh;
     overflow: hidden;
 }
@@ -23,7 +53,7 @@ body {
     display: flex;
     justify-content: center;
     align-items: flex-start;
-    padding: 100px 30px 50px 120px;
+    padding: var(--ak-container-padding-top) var(--ak-container-padding-side) var(--ak-container-padding-bottom) var(--ak-container-padding-left);
     overflow: visible;
 }
 
@@ -42,12 +72,12 @@ body {
     outline: none;
     resize: none;
     background: transparent;
-    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'San Francisco', 'Helvetica Neue', Helvetica, Arial, sans-serif;
-    font-size: 18px;
-    line-height: 1.7;
-    color: #2a2a2a;
-    font-weight: 350;
-    letter-spacing: 0.005em;
+    font-family: var(--ak-font-family);
+    font-size: var(--ak-font-size);
+    line-height: var(--ak-line-height);
+    color: var(--ak-text-color);
+    font-weight: var(--ak-font-weight);
+    letter-spacing: var(--ak-letter-spacing);
     -webkit-font-smoothing: subpixel-antialiased;
     text-rendering: optimizeLegibility;
     caret-color: transparent;
@@ -70,12 +100,12 @@ body {
 
 .custom-caret {
     position: absolute;
-    width: 3.3px;
-    height: 27.5px;
-    background: #007aff;
+    width: var(--ak-caret-width);
+    height: var(--ak-caret-height);
+    background: var(--ak-caret-color);
     pointer-events: none;
     z-index: 1000;
-    border-radius: 1px;
+    border-radius: var(--ak-caret-radius);
     animation: blink 1s infinite;
     opacity: 0;
 }
@@ -87,11 +117,11 @@ body {
 
 /* Semantic paragraph styles */
 .editor p {
-    margin: 0 0 1.5em 0;
-    line-height: 1.7;
-    font-size: 18px;
-    font-weight: 350;
-    color: #2a2a2a;
+    margin: 0 0 var(--ak-paragraph-margin) 0;
+    line-height: var(--ak-line-height);
+    font-size: var(--ak-font-size);
+    font-weight: var(--ak-font-weight);
+    color: var(--ak-text-color);
     -webkit-font-smoothing: subpixel-antialiased;
     text-rendering: optimizeLegibility;
 }
@@ -102,13 +132,13 @@ body {
 
 /* Semantic header styles */
 h1 {
-    font-size: 18px !important;
-    font-weight: 550 !important;
+    font-size: var(--ak-font-size) !important;
+    font-weight: var(--ak-header-weight) !important;
     text-transform: uppercase !important;
     letter-spacing: 0 !important;
-    line-height: 1.7 !important;
-    color: #555555 !important;
-    margin: 4em 0 1em 0 !important;
+    line-height: var(--ak-line-height) !important;
+    color: var(--ak-header-color) !important;
+    margin: var(--ak-header-margin-top) 0 var(--ak-header-margin-bottom) 0 !important;
     padding: 0 !important;
     position: relative !important;
 }
